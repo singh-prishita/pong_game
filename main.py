@@ -1,18 +1,23 @@
 import cv2
 import cvzone
 from cvzone.HandTrackingModule import HandDetector
+from cvzone.ClassificationModule import Classifier
 import numpy as np
+import time
+from playsound import playsound
 
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
 
 # Importing all resources
-imgBackground = cv2.imread("Resources/Background.png")
-imgGameOver = cv2.imread("Resources/gameOver.png")
-imgBall = cv2.imread("Resources/Ball.png", cv2.IMREAD_UNCHANGED)
-imgBat1 = cv2.imread("Resources/bat1.png", cv2.IMREAD_UNCHANGED)
-imgBat2 = cv2.imread("Resources/bat2.png", cv2.IMREAD_UNCHANGED)
+imgBackground = cv2.imread("Resources/Backgrounds.png")
+# imgBackgrounds = cv2.imread("Resources/Backgrounds.png")
+print(imgBackground.shape)
+imgGameOver = cv2.imread("Resources/Over.png")
+imgBall = cv2.imread("Resources/strike.png", cv2.IMREAD_UNCHANGED)
+imgBat1 = cv2.imread("Resources/a.png", cv2.IMREAD_UNCHANGED)
+imgBat2 = cv2.imread("Resources/a.png", cv2.IMREAD_UNCHANGED)
 
 # Hand Detector
 detector = HandDetector(detectionCon=0.8, maxHands=2)
@@ -24,6 +29,8 @@ speedY = 15
 gameOver = False
 score = [0, 0]
 
+num_frames = 0
+start_time = time.time()
 
 while True:
     _, img = cap.read()
@@ -42,18 +49,52 @@ while True:
             x, y, w, h = hand['bbox']
             h1, w1, _ = imgBat1.shape
             y1 = y - h1//2
-            y1 = np.clip(y1, 20, 415)
+            y1 = np.clip(y1, 20, 445)
+            
+
+            # h2, w2, _ = imgBat2.shape
+            # y2 = y - h2//2
+            # y2 = np.clip(y2, 20, 445)
+            # x2 = x - w2//2
+
 
             if hand['type'] == "Left":
-                img = cvzone.overlayPNG(img, imgBat1, (59, y1))
-                if 59 < ballPos[0] < 59 + w1 and y1 < ballPos[1] < y1 + h1:
+                x1 = x - w1//2
+                img = cvzone.overlayPNG(img, imgBat1, (x1, y1))
+                lmListLeft = hand["lmList"]
+                fingersLeft = detector.fingersUp(hand)
+                fingersLeft = sum(fingersLeft)
+                # print(fingersLeft, speedX)
+                if x1 < ballPos[0] < x1 + 10 + w1 and y1 < ballPos[1] < y1 + h1: 
+                    playsound("Resources/air-hockey-puck-hitsb.mp3")   
                     speedX = -speedX # Change OX direction 
                     ballPos[0] += 30
                     score[0] += 1
 
+                    if fingersLeft == 2 and speedX <0:
+                        speedX = speedX +10
+                
+                    if fingersLeft == 2 and speedX >0:
+                        speedX = speedX -10
+
+                    if fingersLeft == 3 and speedX <0:
+                        speedX = speedX 
+
+                    if fingersLeft == 3 and speedX >0:
+                        speedX = speedX 
+
+                    if fingersLeft == 4 and speedX <0:
+                        speedX = speedX -25
+
+                    if fingersLeft == 4 and speedX >0:
+                        speedX = speedX + 25  
+
             if hand['type'] == "Right":
-                img = cvzone.overlayPNG(img, imgBat2, (1195, y1))
-                if 1195 - 50 < ballPos[0] < 1195 + w1 and y1 < ballPos[1] < y1 + h1:
+                x2 = x - w1//2
+                img = cvzone.overlayPNG(img, imgBat2, (x2, y1))
+                lmListRight = hand["lmList"]
+                if x2 - 40 < ballPos[0] < x2 + w1 and y1 < ballPos[1] < y1 + h1:
+                    playsound("Resources/air-hockey-puck-hitsb.mp3")   
                     speedX = -speedX # Change OX direction
                     ballPos[0] -= 30
                     score[1] += 1
@@ -89,7 +130,18 @@ while True:
     # Cam show
     img[580:700, 20:233] = cv2.resize(imgRaw, (213, 120)) 
 
-    cv2.imshow("Image", img)
+       # Increment frame count
+    num_frames += 1
+
+    # Calculate elapsed time and FPS
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    fps = num_frames / elapsed_time
+
+    # Display the FPS on the frame
+    cv2.putText(img, f"FPS: {round(fps, 2)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    cv2.imshow("Prishita", img)
     key = cv2.waitKey(1)
 
     # Reload the game by pressing "r"
@@ -99,4 +151,4 @@ while True:
         speedY = 15
         gameOver = False
         score = [0, 0]
-        imgGameOver = cv2.imread("Resources/gameOver.png")
+        imgGameOver = cv2.imread("Resources/Over.png")
